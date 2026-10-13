@@ -1,7 +1,8 @@
-// Builds amy/, a second copy of the app at its own link with its own
-// title, look (maroon "amy" skin), icons and storage key. It shares app.js
-// and style.css with the main app.
-// Run after changing index.html, manifest.json or sw.js:  node build-planner.js
+// Builds amy/, a fully separate copy of the app at its own link, with its own
+// title, look (maroon "amy" skin), icons, storage key and its OWN copies of
+// app.js and style.css, so changes to the main app never affect it.
+// Only run this when you deliberately want to copy main-app changes into amy/:
+//   node build-planner.js
 const fs = require('fs');
 const path = require('path');
 
@@ -22,11 +23,9 @@ html = html
   .replace(/<meta name="theme-color"[^>]*>\s*<meta name="theme-color"[^>]*>/, `<meta name="theme-color" content="${MAROON}">`)
   .replace(/(<meta name="apple-mobile-web-app-title" content=")[^"]*"/, (_, a) => `${a}${SHORT}"`)
   .replace(/<h1>[^<]*<\/h1>/, `<h1>${TITLE} <span class="heart" aria-hidden="true">♥</span></h1>`)
-  .replace('href="style.css"', 'href="../style.css"')
   .replace('status-bar-style" content="default"', 'status-bar-style" content="black-translucent"')
   .replace('<script src="app.js"></script>',
-    `<script>window.APP_CONFIG = { storeKey: '${STORE_KEY}', defaults: ${JSON.stringify(DEFAULTS)} };</script>\n  <script src="../app.js"></script>`);
-// amy/ has its own icons folder, so icons/... paths stay relative to amy/.
+    `<script>window.APP_CONFIG = { storeKey: '${STORE_KEY}', defaults: ${JSON.stringify(DEFAULTS)} };</script>\n  <script src="app.js"></script>`);
 fs.writeFileSync(path.join(dir, 'index.html'), html);
 
 const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, 'manifest.json'), 'utf8'));
@@ -36,10 +35,10 @@ manifest.theme_color = MAROON;
 manifest.background_color = '#fbf3f4';
 fs.writeFileSync(path.join(dir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
 
-let sw = fs.readFileSync(path.join(__dirname, 'sw.js'), 'utf8');
-sw = sw
-  .replace(/'weekly-budget-'/g, "'amy-budget-'")
-  .replace(/'\.\/(style\.css|app\.js)'/g, "'../$1'");
+const sw = fs.readFileSync(path.join(__dirname, 'sw.js'), 'utf8').replace(/'weekly-budget-'/g, "'amy-budget-'");
 fs.writeFileSync(path.join(dir, 'sw.js'), sw);
+
+fs.copyFileSync(path.join(__dirname, 'app.js'), path.join(dir, 'app.js'));
+fs.copyFileSync(path.join(__dirname, 'style.css'), path.join(dir, 'style.css'));
 
 console.log('amy/ built');
