@@ -57,6 +57,6 @@ Your data lives only on the phone, so if you delete the app, clear your browser 
 
 Plain HTML, CSS and JavaScript (`index.html`, `style.css`, `app.js`). There's no build step. A service worker (`sw.js`) caches the files so the app works offline. After changing any file, bump `VERSION` in `sw.js` so installed copies pick up the update. Hosted on GitHub Pages straight from the `main` branch.
 
-## A second copy
+## Amy's copy
 
-`planner/` is the same app at its own link (`/planner/`) with the title "Budget Planner" and its own storage, so a second person can use it with completely separate data. It reuses `app.js`, `style.css` and the icons. After changing `index.html`, `manifest.json` or `sw.js`, run `node build-planner.js` to rebuild it.
+`amy/` is the same app at its own link (`/amy/`) with its own title, a maroon look (the `amy` skin in `style.css`), its own icons and its own storage, so a second person can use it with completely separate data. It reuses `app.js` and `style.css`. After changing `index.html`, `manifest.json` or `sw.js`, run `node build-planner.js` to rebuild it.

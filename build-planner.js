@@ -1,35 +1,43 @@
-// Builds planner/, a second copy of the app at its own link with its own
-// title and its own storage key, sharing app.js, style.css and icons.
-// Run after changing index.html or sw.js:  node build-planner.js
+// Builds amy/, a second copy of the app at its own link with its own
+// title, look (maroon "amy" skin), icons and storage key. It shares app.js
+// and style.css with the main app.
+// Run after changing index.html, manifest.json or sw.js:  node build-planner.js
 const fs = require('fs');
 const path = require('path');
 
-const TITLE = 'Budget Planner';
-const SHORT = 'Budget';
-const STORE_KEY = 'budgetPlanner.v1';
-const dir = path.join(__dirname, 'planner');
+const TITLE = "Amy's Budget";
+const SHORT = "Amy's Budget";
+const STORE_KEY = 'amyBudget.v1';
+const SKIN = 'amy';
+const MAROON = '#7a1f35';
+const dir = path.join(__dirname, 'amy');
 fs.mkdirSync(dir, { recursive: true });
 
 let html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
 html = html
+  .replace('<html lang="en">', `<html lang="en" data-skin="${SKIN}">`)
   .replace(/<title>[^<]*<\/title>/, `<title>${TITLE}</title>`)
-  .replace(/(<meta name="apple-mobile-web-app-title" content=")[^"]*"/, `$1${SHORT}"`)
-  .replace(/<h1>[^<]*<\/h1>/, `<h1>${TITLE}</h1>`)
-  .replace(/href="(style\.css|icons\/)/g, 'href="../$1')
+  .replace(/<meta name="theme-color"[^>]*>\s*<meta name="theme-color"[^>]*>/, `<meta name="theme-color" content="${MAROON}">`)
+  .replace(/(<meta name="apple-mobile-web-app-title" content=")[^"]*"/, (_, a) => `${a}${SHORT}"`)
+  .replace(/<h1>[^<]*<\/h1>/, `<h1>${TITLE} <span class="heart" aria-hidden="true">♥</span></h1>`)
+  .replace('href="style.css"', 'href="../style.css"')
+  .replace('status-bar-style" content="default"', 'status-bar-style" content="black-translucent"')
   .replace('<script src="app.js"></script>',
     `<script>window.APP_CONFIG = { storeKey: '${STORE_KEY}' };</script>\n  <script src="../app.js"></script>`);
+// amy/ has its own icons folder, so icons/... paths stay relative to amy/.
 fs.writeFileSync(path.join(dir, 'index.html'), html);
 
 const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, 'manifest.json'), 'utf8'));
 manifest.name = TITLE;
 manifest.short_name = SHORT;
-manifest.icons = manifest.icons.map(i => ({ ...i, src: '../' + i.src }));
+manifest.theme_color = MAROON;
+manifest.background_color = '#fbf3f4';
 fs.writeFileSync(path.join(dir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
 
 let sw = fs.readFileSync(path.join(__dirname, 'sw.js'), 'utf8');
 sw = sw
-  .replace(/'weekly-budget-'/g, "'budget-planner-'")
-  .replace(/'\.\/(style\.css|app\.js|icons\/[^']*)'/g, "'../$1'");
+  .replace(/'weekly-budget-'/g, "'amy-budget-'")
+  .replace(/'\.\/(style\.css|app\.js)'/g, "'../$1'");
 fs.writeFileSync(path.join(dir, 'sw.js'), sw);
 
-console.log('planner/ built');
+console.log('amy/ built');
