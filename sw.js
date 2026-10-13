@@ -1,6 +1,6 @@
 // Offline support: cache the app files, serve them from cache first.
 // Bump VERSION whenever any file below changes so phones pick up the update.
-const VERSION = 'v4';
+const VERSION = 'v5';
 const CACHE = 'weekly-budget-' + VERSION;
 const FILES = [
   './',

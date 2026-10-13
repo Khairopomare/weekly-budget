@@ -5,7 +5,7 @@
    No network calls apart from loading the app files themselves.
    ========================================================= */
 
-const STORE_KEY = 'weeklyBudget.v1';
+const STORE_KEY = (window.APP_CONFIG && window.APP_CONFIG.storeKey) || 'weeklyBudget.v1';
 const DAY = 86400000;
 
 /* ---------- small helpers ---------- */
