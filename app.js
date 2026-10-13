@@ -5,7 +5,8 @@
    No network calls apart from loading the app files themselves.
    ========================================================= */
 
-const STORE_KEY = (window.APP_CONFIG && window.APP_CONFIG.storeKey) || 'weeklyBudget.v1';
+const CONFIG = window.APP_CONFIG || {};
+const STORE_KEY = CONFIG.storeKey || 'weeklyBudget.v1';
 const DAY = 86400000;
 
 /* ---------- small helpers ---------- */
@@ -74,7 +75,7 @@ function fmtDay(s) { // Wed 15
 }
 function fmtWeek(s) { // Mon 13 Oct
   const d = parseYmd(s);
-  return `Mon ${d.getDate()} ${MONTHS[d.getMonth()]}`;
+  return `${fmtDay(s)} ${MONTHS[d.getMonth()]}`;
 }
 function daysBetween(a, b) { // b - a in whole days
   return Math.round((parseYmd(b) - parseYmd(a)) / DAY);
@@ -85,7 +86,10 @@ function daysBetween(a, b) { // b - a in whole days
 function defaultState() {
   return {
     version: 1,
-    settings: { taxRate: null, titheRate: 10, titheBasis: 'gross', offering: true },
+    settings: Object.assign({
+      taxRate: null, titheRate: 10, titheBasis: 'gross', offering: true,
+      period: 'week', usualPay: null, taxWithheld: false,
+    }, CONFIG.defaults || {}),
     weekStart: mondayOf(today()), // Monday of the "This week" column
     thisWeek: emptyWeek(),
     nextWeek: emptyWeek(),
@@ -164,6 +168,21 @@ function costPerWeek(c) {
   return f.toWeek(num(c.amount) || 0);
 }
 
+/* Pay period: a week (commission, paid weekly) or a fortnight (salary). */
+function period() {
+  const f = state.settings.period === 'fortnight';
+  return { days: f ? 14 : 7, perYear: f ? 26 : 52, mult: f ? 2 : 1, word: f ? 'fortnight' : 'week', Word: f ? 'Fortnight' : 'Week', per: f ? '/fn' : '/wk' };
+}
+
+function costPerPeriod(c) {
+  return costPerWeek(c) * period().mult;
+}
+
+/* What came in: the amount typed, or the usual pay from Settings. */
+function payOf(wk) {
+  return wk.pay !== null ? wk.pay : num(state.settings.usualPay);
+}
+
 function debtActive(d, weekStart) {
   return d.on !== false && (!d.until || weekStart <= d.until);
 }
@@ -171,7 +190,7 @@ function debtActive(d, weekStart) {
 /* Fixed = bills + debt repayments. Living = the day-to-day allowance. */
 function budgetFor(weekStart) {
   let living = 0;
-  for (const c of state.costs) if (c.on !== false && c.type === 'living') living += costPerWeek(c);
+  for (const c of state.costs) if (c.on !== false && c.type === 'living') living += costPerPeriod(c);
   const fixed = fixedItems(weekStart).reduce((t, it) => t + it.amount, 0);
   return { fixed, living, total: fixed + living };
 }
@@ -179,7 +198,7 @@ function budgetFor(weekStart) {
 /* Average weekly cost of bills + debts (for the Expenses summary). */
 function fixedAverage(weekStart) {
   let t = 0;
-  for (const c of state.costs) if (c.on !== false && c.type !== 'living') t += costPerWeek(c);
+  for (const c of state.costs) if (c.on !== false && c.type !== 'living') t += costPerPeriod(c);
   for (const d of state.debts) if (debtActive(d, weekStart)) t += num(d.payment) || 0;
   return t;
 }
@@ -189,7 +208,7 @@ function fixedAverage(weekStart) {
 function dueInWeek(c, weekStart) {
   if (c.freq === 'weekly' || !c.due) return null;
   const anchor = parseYmd(c.due);
-  for (let k = 0; k < 7; k++) {
+  for (let k = 0; k < period().days; k++) {
     const day = addDays(weekStart, k);
     const d = parseYmd(day);
     const dim = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
@@ -212,7 +231,7 @@ function fixedItems(weekStart) {
     const due = dueInWeek(c, weekStart);
     if (due === false) continue;
     if (due) items.push({ id: c.id, name: c.name || 'Unnamed', amount: num(c.amount) || 0, note: 'due ' + fmtDay(due) });
-    else items.push({ id: c.id, name: c.name || 'Unnamed', amount: costPerWeek(c), note: c.freq !== 'weekly' ? 'set aside' : '' });
+    else items.push({ id: c.id, name: c.name || 'Unnamed', amount: costPerPeriod(c), note: c.freq !== 'weekly' ? 'set aside' : '' });
   }
   for (const d of state.debts) if (debtActive(d, weekStart)) items.push({ id: d.id, name: d.name || 'Unnamed', amount: num(d.payment) || 0, debt: true });
   return items;
@@ -222,7 +241,8 @@ function snapshot(weekStart) {
   const s = state.settings;
   const b = budgetFor(weekStart);
   return {
-    taxRate: num(s.taxRate) || 0,
+    taxRate: s.taxWithheld ? 0 : num(s.taxRate) || 0,
+    perYear: period().perYear,
     titheRate: num(s.titheRate) || 0,
     titheBasis: s.titheBasis,
     offering: !!s.offering,
@@ -246,7 +266,7 @@ function calcWeek(pay, act, snap, items) {
   exp.tax = pay * snap.taxRate / 100;
   const titheBase = snap.titheBasis === 'afterTax' ? pay - exp.tax : pay;
   exp.tithe = titheBase * snap.titheRate / 100;
-  exp.offering = snap.offering ? pay / 52 : 0;
+  exp.offering = snap.offering ? pay / (snap.perYear || 52) : 0;
   exp.fixed = snap.fixed ?? snap.budget ?? 0;
   exp.living = snap.living ?? 0;
 
@@ -339,7 +359,7 @@ function currentGoal(sim) {
 /* ---------- rendering: This Week ---------- */
 
 const colState = { this: () => state.thisWeek, next: () => state.nextWeek };
-const colStart = { this: () => state.weekStart, next: () => addDays(state.weekStart, 7) };
+const colStart = { this: () => state.weekStart, next: () => addDays(state.weekStart, period().days) };
 
 const ROW_LABEL = { tax: 'Tax', tithe: 'Tithe', offering: 'Offering', fixed: 'Fixed expenses', living: 'Living expenses' };
 
@@ -353,7 +373,7 @@ function weekCardHtml(key, items) {
   return `
     <div class="wk" data-col="${key}" data-sig="${esc(weekSig(items))}">
       <div class="wk-head">
-        <h2>${key === 'this' ? 'This week' : 'Next week'}</h2>
+        <h2>${key === 'this' ? 'This ' : 'Next '}${period().word}</h2>
         <span class="when" data-out="start"></span>
       </div>
       <label class="field pay">
@@ -370,7 +390,7 @@ function weekCardHtml(key, items) {
             <th>${esc(it.name)}${it.note ? `<small>${it.note}</small>` : ''}</th>
             <td>${money(it.amount)}</td>
             <td><input type="text" inputmode="decimal" data-item="${esc(it.id)}" autocomplete="off" placeholder="${(Math.round(it.amount * 100) / 100).toFixed(2)}" aria-label="${esc(it.name)} actual"></td>
-          </tr>`).join('') || '<tr class="item-row"><th colspan="3">Nothing due this week</th></tr>'}
+          </tr>`).join('') || `<tr class="item-row"><th colspan="3">Nothing due this ${period().word}</th></tr>`}
           <tr class="sub"><th>Yours to live on</th><td data-out="liveExp"></td><td data-out="liveUsed"></td></tr>
           ${row('living')}
           <tr class="diff-row"><th>Under / over</th><td colspan="2" data-out="diff"></td></tr>
@@ -403,7 +423,7 @@ function renderWeek() {
       root = $(`#weeks > [data-col="${key}"]`);
     }
     const snap = snapshot(start);
-    const r = calcWeek(wk.pay, wk.act, snap, wk.items);
+    const r = calcWeek(payOf(wk), wk.act, snap, wk.items);
     for (const inp of $$('[data-item]', root)) {
       const a = wk.items[inp.dataset.item];
       if (document.activeElement !== inp) inp.value = a === undefined || a === null ? '' : a;
@@ -420,6 +440,8 @@ function renderWeek() {
     out('start').textContent = 'Starting ' + fmtWeek(start);
     const payIn = $('[data-in="pay"]', root);
     if (document.activeElement !== payIn) payIn.value = wk.pay === null ? '' : wk.pay;
+    payIn.placeholder = num(state.settings.usualPay) !== null ? (Math.round(num(state.settings.usualPay) * 100) / 100).toFixed(2) : '0.00';
+    $('[data-row="tax"]', root).hidden = !!state.settings.taxWithheld;
 
     $('[data-row="offering"]', root).hidden = !state.settings.offering;
     for (const k of OUT_ROWS) {
@@ -459,10 +481,9 @@ function renderWeek() {
   // Tax rate not set yet
   const warn = $('#week-warning');
   const msgs = [];
-  if (num(state.settings.taxRate) === null) msgs.push('Tax % isn’t set yet — add it in <a href="#settings">Settings</a>.');
-  const nowMonday = mondayOf(today());
-  if (nowMonday > state.weekStart) {
-    msgs.push(`“This week” is still the week of ${fmtWeek(state.weekStart)}. When it’s finished, tap <b>Start new week</b>.`);
+  if (!state.settings.taxWithheld && num(state.settings.taxRate) === null) msgs.push('Tax % isn’t set yet — add it in <a href="#settings">Settings</a>.');
+  if (addDays(state.weekStart, period().days - 1) < today()) {
+    msgs.push(`“This ${period().word}” is still the one starting ${fmtWeek(state.weekStart)}. When it’s finished, tap <b>Start new ${period().word}</b>.`);
   }
   warn.innerHTML = msgs.join('<br>');
   warn.hidden = msgs.length === 0;
@@ -490,8 +511,8 @@ function renderWeek() {
   // Fixed costs list, split into bills and living
   const costRow = (c, i) => `
     <li class="${c.on === false ? 'off' : ''}">
-      <span class="name">${esc(c.name) || 'Unnamed'}${c.freq && c.freq !== 'weekly' ? `<small>${money(num(c.amount))} ${FREQ[c.freq].label.toLowerCase()}${c.type !== 'living' ? (c.due ? ' · from ' + fmtDate(c.due) : ' · no date, set aside weekly') : ''}</small>` : ''}</span>
-      <span class="amt">${money(costPerWeek(c))}</span>
+      <span class="name">${esc(c.name) || 'Unnamed'}${c.freq && c.freq !== 'weekly' ? `<small>${money(num(c.amount))} ${FREQ[c.freq].label.toLowerCase()}${c.type !== 'living' ? (c.due ? ' · from ' + fmtDate(c.due) : ' · no date, set aside each ' + period().word) : ''}</small>` : ''}</span>
+      <span class="amt">${money(costPerPeriod(c))}</span>
       <input type="checkbox" class="switch" data-toggle="costs" data-idx="${i}" ${c.on !== false ? 'checked' : ''} aria-label="Include ${esc(c.name)}">
     </li>`;
   const listOf = type => state.costs.map((c, i) => [c, i]).filter(([c]) => (c.type === 'living') === (type === 'living'));
@@ -516,7 +537,7 @@ function renderWeek() {
   $('#fixed-total').textContent = money(fixedAvg);
   $('#living-total').textContent = money(b.living);
   $('#budget-total').textContent = money(fixedAvg + b.living);
-  $('#budget-total-summary').textContent = money(fixedAvg + b.living) + '/wk avg';
+  $('#budget-total-summary').textContent = money(fixedAvg + b.living) + period().per + ' avg';
 }
 
 /* ---------- rendering: Savings ---------- */
@@ -539,10 +560,10 @@ function renderSavings() {
       if (days <= 0) {
         need = x.bal >= x.target ? '' : 'Date passed';
       } else {
-        const weeks = Math.max(1, Math.ceil(days / 7));
+        const weeks = Math.max(1, Math.ceil(days / period().days));
         const perWk = Math.max(0, x.target - x.bal) / weeks;
-        need = perWk > 0 ? `${money(perWk)}/wk needed` : 'On target';
-        if (x.stretch && x.bal < x.stretch) need += ` · ${money((x.stretch - x.bal) / weeks)}/wk for stretch`;
+        need = perWk > 0 ? `${money(perWk)}${period().per} needed` : 'On target';
+        if (x.stretch && x.bal < x.stretch) need += ` · ${money((x.stretch - x.bal) / weeks)}${period().per} for stretch`;
       }
     }
 
@@ -609,7 +630,7 @@ function renderSavings() {
   // History
   $('#history').innerHTML = hist.length ? `
     <div class="hist"><table>
-      <thead><tr><th>Week</th><th>Came in</th><th>Went out</th><th>Saved</th></tr></thead>
+      <thead><tr><th>${period().Word}</th><th>Came in</th><th>Went out</th><th>Saved</th></tr></thead>
       <tbody>${hist.map(h => `
         <tr data-hist="${h.id}">
           <td>${fmtDate(h.weekStart)}</td>
@@ -618,7 +639,7 @@ function renderSavings() {
           <td class="${num(h.saved) >= 0 ? 'good' : 'bad'}">${money(num(h.saved))}</td>
         </tr>`).join('')}
       </tbody></table></div>`
-    : '<div class="hist"><div class="empty">No finished weeks yet. Tap “Start new week” on the home screen when a week is done.</div></div>';
+    : `<div class="hist"><div class="empty">Nothing logged yet. Tap “Start new ${period().word}” on the home screen when a ${period().word} is done.</div></div>`;
 }
 
 // Total that went out in a logged week (older rows may lack it).
@@ -636,6 +657,11 @@ function sortedHistory() {
 function renderSettings() {
   const s = state.settings;
   const setVal = (id, v) => { const el = $(id); if (document.activeElement !== el) el.value = v ?? ''; };
+  $('#set-period').value = s.period;
+  setVal('#set-usual-pay', s.usualPay);
+  setVal('#set-start', state.weekStart);
+  $('#set-tax-withheld').checked = !!s.taxWithheld;
+  $('#tax-rate-row').hidden = !!s.taxWithheld;
   setVal('#set-tax', s.taxRate);
   setVal('#set-tithe', s.titheRate);
   $('#set-tithe-basis').value = s.titheBasis;
@@ -680,7 +706,7 @@ function renderSettings() {
         </label>
         ${toggle('costs', i, 'on', 'Included in budget', c.on !== false)}
       </div>
-      ${actions('costs', i, `<span class="per-week" data-perweek="${i}">${money(costPerWeek(c))}/wk</span>`)}
+      ${actions('costs', i, `<span class="per-week" data-perweek="${i}">${money(costPerPeriod(c))}${period().per}</span>`)}
     </div>`).join('') || '<p class="hint">None yet.</p>';
 
   $('#edit-debts').innerHTML = state.debts.map((d, i) => `
@@ -688,7 +714,7 @@ function renderSettings() {
       <div class="item-grid">
         ${field('debts', i, 'name', 'Name', d.name, { full: true, text: true, ph: 'e.g. Car loan' })}
         ${field('debts', i, 'balance', 'Balance', d.balance, { ph: '0.00' })}
-        ${field('debts', i, 'payment', 'Weekly payment', d.payment, { ph: '0.00' })}
+        ${field('debts', i, 'payment', 'Payment each ' + period().word, d.payment, { ph: '0.00' })}
         ${field('debts', i, 'until', 'Paid off by (optional)', d.until, { type: 'date', full: true })}
         ${toggle('debts', i, 'on', 'Included in budget', d.on !== false)}
       </div>
@@ -725,7 +751,19 @@ function route() {
   window.scrollTo(0, 0);
 }
 
+function applyLabels() {
+  const p = period();
+  $('#new-week').textContent = `Start new ${p.word}`;
+  $('#add-past').textContent = `Add a past ${p.word}`;
+  $('.tabs a[data-tab="week"] span').textContent = `This ${p.Word}`;
+  $('[data-label="start"]').textContent = `This ${p.word} started on`;
+  $('[data-label="offering"]').textContent = `Offering (pay ÷ ${p.perYear})`;
+  $('.screen#screen-week').dataset.title = `This ${p.Word}`;
+  if (!$('#screen-week').hidden) $('#title').textContent = `This ${p.Word}`;
+}
+
 function renderAll() {
+  applyLabels();
   renderWeek();
   if (!$('#screen-savings').hidden) renderSavings();
   if (!$('#screen-settings').hidden) renderSettings();
@@ -771,6 +809,7 @@ document.addEventListener('input', e => {
   // Settings rates
   if (el.id === 'set-tax') { state.settings.taxRate = num(el.value); save(); renderWeek(); return; }
   if (el.id === 'set-tithe') { state.settings.titheRate = num(el.value); save(); renderWeek(); return; }
+  if (el.id === 'set-usual-pay') { state.settings.usualPay = num(el.value); save(); renderWeek(); return; }
 
   // Settings list editors
   if (el.dataset.list) {
@@ -784,7 +823,7 @@ document.addEventListener('input', e => {
     if (el.type === 'checkbox') el.closest('.item').classList.toggle('off', k === 'on' && !el.checked);
     if (el.dataset.list === 'costs') {
       const pw = $(`[data-perweek="${el.dataset.idx}"]`);
-      if (pw) pw.textContent = money(costPerWeek(item)) + '/wk';
+      if (pw) pw.textContent = money(costPerPeriod(item)) + period().per;
     }
     renderWeek();
   }
@@ -800,6 +839,16 @@ document.addEventListener('change', e => {
   }
   if (el.id === 'set-tithe-basis') { state.settings.titheBasis = el.value; save(); renderWeek(); return; }
   if (el.id === 'set-offering') { state.settings.offering = el.checked; save(); renderWeek(); return; }
+  if (el.id === 'set-period') {
+    state.settings.period = el.value;
+    $('#weeks').innerHTML = ''; // headings change, rebuild the cards
+    save(); renderAll(); return;
+  }
+  if (el.id === 'set-start' && el.value) {
+    state.weekStart = period().days === 7 ? mondayOf(el.value) : el.value;
+    save(); renderAll(); return;
+  }
+  if (el.id === 'set-tax-withheld') { state.settings.taxWithheld = el.checked; save(); renderAll(); return; }
   if (el.dataset.list && el.tagName === 'SELECT') {
     state[el.dataset.list][+el.dataset.idx][el.dataset.k] = el.value;
     save();
@@ -809,27 +858,28 @@ document.addEventListener('change', e => {
 
 $('#new-week').addEventListener('click', async () => {
   const wk = state.thisWeek;
-  if (wk.pay === null) {
-    await openDialog({ title: 'Enter this week’s pay first', body: '<p>Type what came in this week (put 0 if nothing did), then tap Start new week again.</p>', ok: 'OK' });
+  const pay = payOf(wk);
+  if (pay === null) {
+    await openDialog({ title: 'Enter your pay first', body: `<p>Type what came in this ${period().word} (put 0 if nothing did), then tap Start new ${period().word} again.</p>`, ok: 'OK' });
     return;
   }
   const snap = snapshot(state.weekStart);
-  const r = calcWeek(wk.pay, wk.act, snap, wk.items);
+  const r = calcWeek(pay, wk.act, snap, wk.items);
   const res = await openDialog({
-    title: 'Start new week?',
-    body: `<p>This logs the week of <b>${fmtDate(state.weekStart)}</b> to history:</p>
-      <p>Came in ${money(wk.pay)} · Went out ${money(r.outUsed)} · Saved <b class="${r.saved >= 0 ? 'good' : 'bad'}">${money(r.saved)}</b></p>
+    title: `Start new ${period().word}?`,
+    body: `<p>This logs the ${period().word} starting <b>${fmtDate(state.weekStart)}</b> to history:</p>
+      <p>Came in ${money(pay)} · Went out ${money(r.outUsed)} · Saved <b class="${r.saved >= 0 ? 'good' : 'bad'}">${money(r.saved)}</b></p>
       ${r.diff === null ? '<p class="hint">No actuals entered, so expected amounts are used.</p>' : ''}
-      <p>Next week moves into This week.</p>`,
-    ok: 'Start new week',
+      <p>Next ${period().word} moves into This ${period().word}.</p>`,
+    ok: `Start new ${period().word}`,
   });
   if (res !== 'ok') return;
   const act = {};
   for (const k of OUT_ROWS) act[k] = round2(r.used[k]);
-  state.history.push({ id: uid(), weekStart: state.weekStart, pay: wk.pay, act, items: Object.assign({}, wk.items), out: round2(r.outUsed), saved: round2(r.saved), snap });
+  state.history.push({ id: uid(), weekStart: state.weekStart, pay, act, items: Object.assign({}, wk.items), out: round2(r.outUsed), saved: round2(r.saved), snap });
   state.thisWeek = normWeek(state.nextWeek);
   state.nextWeek = emptyWeek();
-  state.weekStart = addDays(state.weekStart, 7);
+  state.weekStart = addDays(state.weekStart, period().days);
   save();
   renderAll();
 });
@@ -901,7 +951,7 @@ async function editHistory(id) {
   const h = state.history.find(x => x.id === id);
   const isNew = !h;
   const row = h || {
-    id: uid(), weekStart: addDays(state.history.length ? sortedHistory().slice(-1)[0].weekStart : state.weekStart, -7),
+    id: uid(), weekStart: addDays(state.history.length ? sortedHistory().slice(-1)[0].weekStart : state.weekStart, -period().days),
     pay: null, act: null, saved: 0, snap: null,
   };
   const snap = row.snap || snapshot(row.weekStart);
@@ -914,9 +964,9 @@ async function editHistory(id) {
   }
   const field = (k, label) => `<label class="field"><span>${label}</span><input type="text" inputmode="decimal" id="h-${k}" value="${row.pay === null ? '' : round2(used[k])}" placeholder="0.00"></label>`;
   const res = await openDialog({
-    title: isNew ? 'Add a past week' : 'Edit week',
+    title: isNew ? `Add a past ${period().word}` : `Edit ${period().word}`,
     body: `
-      <label class="field"><span>Week starting (Monday)</span><input type="date" id="h-week" value="${row.weekStart}"></label>
+      <label class="field"><span>${period().Word} starting</span><input type="date" id="h-week" value="${row.weekStart}"></label>
       <label class="field"><span>Came in</span><input type="text" inputmode="decimal" id="h-pay" value="${row.pay ?? ''}" placeholder="0.00"></label>
       <p class="hint">What actually went out:</p>
       <div class="dlg-grid">
@@ -928,7 +978,7 @@ async function editHistory(id) {
   });
 
   if (res === 'delete') {
-    const sure = await openDialog({ title: 'Delete this week?', body: `<p>Week of ${fmtDate(row.weekStart)} will be removed and goal totals recalculated.</p>`, ok: 'Delete', okClass: 'danger' });
+    const sure = await openDialog({ title: `Delete this ${period().word}?`, body: `<p>${period().Word} of ${fmtDate(row.weekStart)} will be removed and goal totals recalculated.</p>`, ok: 'Delete', okClass: 'danger' });
     if (sure === 'ok') {
       state.history = state.history.filter(x => x.id !== id);
       save(); renderAll();
@@ -937,7 +987,7 @@ async function editHistory(id) {
   }
   if (res !== 'ok') return;
 
-  const weekStart = $('#h-week').value ? mondayOf($('#h-week').value) : row.weekStart;
+  const weekStart = $('#h-week').value ? (period().days === 7 ? mondayOf($('#h-week').value) : $('#h-week').value) : row.weekStart;
   const pay = num($('#h-pay').value) ?? 0;
   const entered = {};
   for (const k of OUT_ROWS) entered[k] = num($('#h-' + k).value);

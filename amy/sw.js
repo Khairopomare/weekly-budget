@@ -1,6 +1,6 @@
 // Offline support: cache the app files, serve them from cache first.
 // Bump VERSION whenever any file below changes so phones pick up the update.
-const VERSION = 'v6';
+const VERSION = 'v7';
 const CACHE = 'amy-budget-' + VERSION;
 const FILES = [
   './',

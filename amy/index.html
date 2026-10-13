@@ -61,8 +61,8 @@
     <section id="screen-savings" class="screen" data-title="Savings" hidden>
       <div class="stats">
         <div class="stat"><span>Total saved</span><strong id="stat-total"></strong><small id="stat-total-sub"></small></div>
-        <div class="stat"><span>Avg pay · 4 wks</span><strong id="stat-avg4"></strong><small id="stat-avg4-sub"></small></div>
-        <div class="stat"><span>Avg pay · 12 wks</span><strong id="stat-avg12"></strong><small id="stat-avg12-sub"></small></div>
+        <div class="stat"><span>Avg pay · last 4</span><strong id="stat-avg4"></strong><small id="stat-avg4-sub"></small></div>
+        <div class="stat"><span>Avg pay · last 12</span><strong id="stat-avg12"></strong><small id="stat-avg12-sub"></small></div>
       </div>
 
       <h2 class="section-title">Goals</h2>
@@ -77,8 +77,31 @@
     <!-- Screen 3: Settings -->
     <section id="screen-settings" class="screen" data-title="Settings" hidden>
       <div class="card">
-        <h2>Rates</h2>
+        <h2>Pay</h2>
         <label class="field row">
+          <span>Paid every</span>
+          <select id="set-period">
+            <option value="week">Week</option>
+            <option value="fortnight">Fortnight</option>
+          </select>
+        </label>
+        <label class="field row">
+          <span>Usual pay <small>(optional)</small></span>
+          <input type="text" inputmode="decimal" id="set-usual-pay" placeholder="—">
+        </label>
+        <label class="field row">
+          <span data-label="start">This week started on</span>
+          <input type="date" id="set-start">
+        </label>
+        <label class="field row toggle-row">
+          <span>Tax already taken out <small>(salary)</small></span>
+          <input type="checkbox" class="switch" id="set-tax-withheld">
+        </label>
+      </div>
+
+      <div class="card">
+        <h2>Rates</h2>
+        <label class="field row" id="tax-rate-row">
           <span>Tax set-aside %</span>
           <input type="text" inputmode="decimal" id="set-tax" placeholder="e.g. 0">
         </label>
@@ -90,11 +113,11 @@
           <span>Tithe on</span>
           <select id="set-tithe-basis">
             <option value="gross">Gross pay</option>
-            <option value="afterTax">Pay after tax</option>
+            <option value="afterTax">Pay after tax set-aside</option>
           </select>
         </label>
         <label class="field row toggle-row">
-          <span>Offering (pay ÷ 52)</span>
+          <span data-label="offering">Offering (pay ÷ 52)</span>
           <input type="checkbox" class="switch" id="set-offering">
         </label>
       </div>
@@ -159,7 +182,7 @@
     </form>
   </dialog>
 
-  <script>window.APP_CONFIG = { storeKey: 'amyBudget.v1' };</script>
+  <script>window.APP_CONFIG = { storeKey: 'amyBudget.v1', defaults: {"period":"fortnight","taxWithheld":true,"offering":false} };</script>
   <script src="../app.js"></script>
 </body>
 </html>

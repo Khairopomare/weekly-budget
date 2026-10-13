@@ -10,6 +10,8 @@ const SHORT = "Amy's Budget";
 const STORE_KEY = 'amyBudget.v1';
 const SKIN = 'amy';
 const MAROON = '#7a1f35';
+// Paid a salary every fortnight, tax already taken out.
+const DEFAULTS = { period: 'fortnight', taxWithheld: true, offering: false };
 const dir = path.join(__dirname, 'amy');
 fs.mkdirSync(dir, { recursive: true });
 
@@ -23,7 +25,7 @@ html = html
   .replace('href="style.css"', 'href="../style.css"')
   .replace('status-bar-style" content="default"', 'status-bar-style" content="black-translucent"')
   .replace('<script src="app.js"></script>',
-    `<script>window.APP_CONFIG = { storeKey: '${STORE_KEY}' };</script>\n  <script src="../app.js"></script>`);
+    `<script>window.APP_CONFIG = { storeKey: '${STORE_KEY}', defaults: ${JSON.stringify(DEFAULTS)} };</script>\n  <script src="../app.js"></script>`);
 // amy/ has its own icons folder, so icons/... paths stay relative to amy/.
 fs.writeFileSync(path.join(dir, 'index.html'), html);
 

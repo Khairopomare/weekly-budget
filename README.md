@@ -59,4 +59,4 @@ Plain HTML, CSS and JavaScript (`index.html`, `style.css`, `app.js`). There's no
 
 ## Amy's copy
 
-`amy/` is the same app at its own link (`/amy/`) with its own title, a maroon look (the `amy` skin in `style.css`), its own icons and its own storage, so a second person can use it with completely separate data. It reuses `app.js` and `style.css`. After changing `index.html`, `manifest.json` or `sw.js`, run `node build-planner.js` to rebuild it.
+`amy/` is the same app at its own link (`/amy/`), set up for a fortnightly salary (paid every fortnight, tax already taken out, usual pay filled in automatically), with its own title, a maroon look (the `amy` skin in `style.css`), its own icons and its own storage, so a second person can use it with completely separate data. It reuses `app.js` and `style.css`. After changing `index.html`, `manifest.json` or `sw.js`, run `node build-planner.js` to rebuild it.
