@@ -1,4 +1,4 @@
-# Weekly Budget
+# KP Budget Planner
 
 A simple weekly budget for someone paid weekly who sets aside their own tax and tithe. One screen to check each week, a savings tracker and settings.
 
@@ -27,9 +27,15 @@ Open the app's link in your phone's browser and keep it open until it has fully 
 
 ## Each week
 
-- Type what **came in** for this week and next week. Optionally type what you **spent**.
-- When the week is over, tap **Start new week**. It logs the week to history, pours its SAVED amount into your goals and moves next week's pay into this week.
+- Type what **came in** for this week and next week.
+- Each line shows its **Expected** amount, with an **Actual** box next to it: tax, tithe, offering, each fixed expense due that week, and living expenses. Fill in what actually went out. Blank boxes use the expected amount.
+- **Available for savings** is the plan. **SAVED** is pay minus what actually went out.
+- When the week is over, tap **Start new week**. It logs the week to history, pours its SAVED amount into your goals and moves next week into this week.
 - Move tax and tithe out the day pay lands.
+
+### Bills, debts and living expenses
+
+Each fixed cost is either a **Bill** (fixed expense) or **Living** (part of your day-to-day allowance). Weekly bills and debt repayments are listed every week. A fortnightly, monthly or yearly bill with a **Comes out on** date is only listed in the week it's due, at the full amount. Without a date, its weekly share is set aside every week instead.
 
 ### How savings are allocated
 

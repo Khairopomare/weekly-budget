@@ -1,6 +1,6 @@
 {
-  "name": "Weekly Budget",
-  "short_name": "Budget",
+  "name": "KP Budget Planner",
+  "short_name": "KP Budget",
   "description": "A private weekly budget. Your data stays on your device.",
   "start_url": "./",
   "scope": "./",

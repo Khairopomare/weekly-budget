@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Weekly Budget</title>
+  <title>KP Budget Planner</title>
   <meta name="description" content="A private weekly budget. Your data stays on your device.">
   <meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#111418" media="(prefers-color-scheme: dark)">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Budget">
+  <meta name="apple-mobile-web-app-title" content="KP Budget">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -18,7 +18,8 @@
 </head>
 <body>
   <header class="top">
-    <h1 id="title">This Week</h1>
+    <h1>KP Budget Planner</h1>
+    <p id="title" class="subtitle">This Week</p>
   </header>
 
   <main>
@@ -26,81 +27,33 @@
     <section id="screen-week" class="screen" data-title="This Week">
       <div id="week-warning" class="note warn" hidden></div>
 
-      <div class="cols">
-        <div class="col" data-col="this">
-          <h2>This week</h2>
-          <div class="when" data-out="start"></div>
-          <label class="field">
-            <span>Came in (my pay)</span>
-            <input type="text" inputmode="decimal" data-in="pay" placeholder="0.00" autocomplete="off">
-          </label>
-          <dl class="calc">
-            <div><dt>Tax</dt><dd data-out="tax"></dd></div>
-            <div><dt>Tithe</dt><dd data-out="tithe"></dd></div>
-            <div data-row="offering"><dt>Offering</dt><dd data-out="offering"></dd></div>
-            <div class="strong"><dt>Yours to live on</dt><dd data-out="live"></dd></div>
-          </dl>
-          <label class="field">
-            <span>Spent <small>(optional)</small></span>
-            <input type="text" inputmode="decimal" data-in="spent" placeholder="—" autocomplete="off">
-          </label>
-          <dl class="calc">
-            <div><dt>Budget</dt><dd data-out="budget"></dd></div>
-            <div><dt>Under / over</dt><dd data-out="diff"></dd></div>
-          </dl>
-          <div class="saved">
-            <span>SAVED</span>
-            <strong data-out="saved"></strong>
-          </div>
-        </div>
-
-        <div class="col" data-col="next">
-          <h2>Next week</h2>
-          <div class="when" data-out="start"></div>
-          <label class="field">
-            <span>Came in (my pay)</span>
-            <input type="text" inputmode="decimal" data-in="pay" placeholder="0.00" autocomplete="off">
-          </label>
-          <dl class="calc">
-            <div><dt>Tax</dt><dd data-out="tax"></dd></div>
-            <div><dt>Tithe</dt><dd data-out="tithe"></dd></div>
-            <div data-row="offering"><dt>Offering</dt><dd data-out="offering"></dd></div>
-            <div class="strong"><dt>Yours to live on</dt><dd data-out="live"></dd></div>
-          </dl>
-          <label class="field">
-            <span>Spent <small>(optional)</small></span>
-            <input type="text" inputmode="decimal" data-in="spent" placeholder="—" autocomplete="off">
-          </label>
-          <dl class="calc">
-            <div><dt>Budget</dt><dd data-out="budget"></dd></div>
-            <div><dt>Under / over</dt><dd data-out="diff"></dd></div>
-          </dl>
-          <div class="saved">
-            <span>SAVED</span>
-            <strong data-out="saved"></strong>
-          </div>
-        </div>
-      </div>
-
-      <div class="card goes-to">
-        <span>Goes to:</span> <strong id="goes-to"></strong>
-      </div>
+      <div id="weeks" class="weeks"></div>
 
       <button id="new-week" class="btn primary wide" type="button">Start new week</button>
       <p class="reminder">Move tax and tithe out the day pay lands.</p>
 
+      <div class="card">
+        <div class="card-head">
+          <h2>Savings goals</h2>
+          <a href="#savings">See all</a>
+        </div>
+        <div id="home-goals"></div>
+      </div>
+
       <details id="costs-panel" class="card">
         <summary>
-          <span>Fixed costs</span>
+          <span>Expenses</span>
           <span class="sum" id="budget-total-summary"></span>
         </summary>
+        <h3>Bills</h3>
         <ul id="cost-list" class="list"></ul>
         <h3>Debts</h3>
         <ul id="debt-list" class="list"></ul>
-        <div class="total-row">
-          <span>Weekly budget</span>
-          <strong id="budget-total"></strong>
-        </div>
+        <div class="total-row"><span>Fixed expenses</span><strong id="fixed-total"></strong></div>
+        <h3>Living</h3>
+        <ul id="living-list" class="list"></ul>
+        <div class="total-row"><span>Living allowance</span><strong id="living-total"></strong></div>
+        <div class="total-row grand"><span>Total per week</span><strong id="budget-total"></strong></div>
         <p class="hint">Edit items in <a href="#settings">Settings</a>.</p>
       </details>
     </section>
